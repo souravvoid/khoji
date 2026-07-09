@@ -265,7 +265,7 @@ def handle_generate_timeline(payload):
     notes = db.get_notes(doc_id)
     text = notes.get("content", "") if notes else ""
     events = generate_timeline(text)
-    return {"status": "ok", "result": {"doc_id": doc_id, "events": events}}
+    return {"status": "ok", "result": events}
 
 
 def handle_generate_mindmap(payload):
@@ -277,7 +277,7 @@ def handle_generate_mindmap(payload):
     notes = db.get_notes(doc_id)
     text = notes.get("content", "") if notes else ""
     mermaid = generate_mermaid_diagram(text)
-    return {"status": "ok", "result": {"doc_id": doc_id, "mermaid": mermaid}}
+    return {"status": "ok", "result": mermaid}
 
 
 def handle_save_notes(payload):
