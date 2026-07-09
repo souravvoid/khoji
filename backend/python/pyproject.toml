@@ -1,0 +1,31 @@
+[project]
+name = "khoji-engine"
+version = "1.0.0"
+description = "Khoji AI Engine - Offline AI Knowledge Workspace"
+requires-python = ">=3.12"
+dependencies = [
+    "PyMuPDF>=1.25",
+    "numpy>=2.0",
+    "sentence-transformers>=3.0",
+    "faiss-cpu>=1.9",
+    "llama-cpp-python>=0.3",
+    "python-docx>=1.1",
+    "python-pptx>=1.0",
+    "EbookLib>=0.18",
+    "torch",
+]
+
+[project.optional-dependencies]
+ocr = ["rapidocr-onnxruntime>=1.0"]
+dev = ["pytest>=8.0", "ruff>=0.8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["khoji_engine"]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
