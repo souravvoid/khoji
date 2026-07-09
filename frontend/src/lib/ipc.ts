@@ -159,6 +159,10 @@ export async function downloadModel(modelId: string): Promise<void> {
   await invoke('download_model', { modelId })
 }
 
+export async function selectModel(modelId: string): Promise<{ model_id: string; selected: boolean }> {
+  return parseResponse(await invoke('select_model', { modelId }))
+}
+
 export async function checkProcessingStatus(docId: string): Promise<ProcessingStatus> {
   return parseResponse(await invoke('check_processing_status', { docId }))
 }

@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Cpu, ScanText, Brain } from 'lucide-react'
 import { ModelCard } from './ModelCard'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { getModels, downloadModel as downloadModelApi } from '../../lib/ipc'
+import { getModels, downloadModel as downloadModelApi, selectModel as selectModelApi } from '../../lib/ipc'
 
 const sectionIcons: Record<string, React.ComponentType<{ size?: number }>> = {
   ocr: ScanText,
@@ -24,6 +24,18 @@ export function ModelManager() {
       .then((models) => useSettingsStore.getState().setModels(models || []))
       .catch(console.error)
   }, [])
+
+  const handleSelect = async (modelId: string) => {
+    try {
+      const result = await selectModelApi(modelId)
+      if (result.selected) {
+        const models = await getModels()
+        useSettingsStore.getState().setModels(models || [])
+      }
+    } catch (e) {
+      console.error('Select model failed:', e)
+    }
+  }
 
   const handleDownload = async (modelId: string) => {
     useSettingsStore.getState().updateModel(modelId, { status: 'downloading', progress: 0 })
@@ -59,7 +71,7 @@ export function ModelManager() {
                   key={model.id}
                   model={model}
                   onDownload={() => handleDownload(model.id)}
-                  onSelect={() => {}}
+                  onSelect={() => handleSelect(model.id)}
                 />
               ))}
             </div>

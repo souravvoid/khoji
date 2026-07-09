@@ -339,6 +339,16 @@ fn generate_mindmap(state: tauri::State<PythonEngine>, doc_id: String) -> Result
 }
 
 #[tauri::command]
+fn select_model(state: tauri::State<PythonEngine>, model_id: String) -> Result<String, String> {
+    let mut engine = state.process.lock().map_err(|e| e.to_string())?;
+    let msg = serde_json::json!({
+        "action": "select_model",
+        "payload": { "model_id": model_id }
+    });
+    send_message(&mut engine, &msg.to_string())
+}
+
+#[tauri::command]
 fn save_notes(
     state: tauri::State<PythonEngine>,
     doc_id: String,
@@ -379,6 +389,7 @@ pub fn run() {
             generate_timeline,
             generate_mindmap,
             save_notes,
+            select_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

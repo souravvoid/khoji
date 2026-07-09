@@ -166,18 +166,23 @@ def handle_export_document(payload):
 
 
 def handle_get_models(payload):
-    from khoji_engine.ai.llm import MODEL_PRESETS
+    from pathlib import Path
+    from khoji_engine.ai.llm import MODEL_PRESETS, GGUF_DIR, get_llm
 
+    active = get_llm().config.model_name
     models = []
     for mid, info in MODEL_PRESETS.items():
+        model_path = GGUF_DIR / info["filename"]
+        status = "downloaded" if model_path.exists() else "not-installed"
         models.append({
             "id": mid,
             "name": mid,
             "type": "llm",
             "size": f"{info['ram_mb']}MB",
-            "status": "not-installed",
+            "status": status,
             "ram_mb": info["ram_mb"],
             "quality": info["quality"],
+            "selected": mid == active,
         })
     return {"status": "ok", "result": models}
 
@@ -302,6 +307,16 @@ def handle_save_chat_session(payload):
     return {"status": "ok", "result": result}
 
 
+def handle_select_model(payload):
+    from khoji_engine.ai.llm import set_model, MODEL_PRESETS
+
+    model_id = payload.get("model_id", "")
+    if model_id not in MODEL_PRESETS:
+        return {"status": "error", "message": f"Unknown model: {model_id}"}
+    set_model(model_id)
+    return {"status": "ok", "result": {"model_id": model_id, "selected": True}}
+
+
 # Dispatch table: protocol action -> handler function.
 ACTION_HANDLERS = {
     "ping": handle_ping,
@@ -323,4 +338,5 @@ ACTION_HANDLERS = {
     "generate_mindmap": handle_generate_mindmap,
     "save_notes": handle_save_notes,
     "save_chat_session": handle_save_chat_session,
+    "select_model": handle_select_model,
 }

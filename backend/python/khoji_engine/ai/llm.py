@@ -234,3 +234,15 @@ def get_llm() -> LocalLLM:
     if _default_llm is None:
         _default_llm = LocalLLM()
     return _default_llm
+
+
+def set_model(model_name: str) -> bool:
+    global _default_llm
+    if model_name not in MODEL_PRESETS:
+        return False
+    _default_llm = LocalLLM(LLMConfig(model_name=model_name))
+    preset = MODEL_PRESETS[model_name]
+    model_path = GGUF_DIR / preset["filename"]
+    if model_path.exists():
+        _default_llm.state.model_path = str(model_path)
+    return True
