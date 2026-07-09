@@ -65,7 +65,7 @@ function App() {
     for (const file of files) {
       const jobId = crypto.randomUUID()
       addProcessingJob({
-        filePath: jobId,
+        jobId,
         filename: file.name,
         progress: 0,
         stage: 'ocr',
@@ -85,12 +85,11 @@ function App() {
           if (selected) {
             filePath = selected
           } else {
-            updateProcessingJob(jobId, { status: 'error', error: 'File picker unavailable' })
             continue
           }
         } catch {
-          updateProcessingJob(jobId, { stage: 'extract', originalPath: file.name, status: 'processing', progress: 30 })
-          filePath = file.name
+          updateProcessingJob(jobId, { status: 'error', error: 'File dialog plugin not available' })
+          continue
         }
 
         updateProcessingJob(jobId, { stage: 'processing', originalPath: filePath, status: 'processing', progress: 50 })

@@ -131,7 +131,7 @@ def process_document_sync(
         result.message = f"File not found: {file_path}"
         return result
 
-    existing = db.document_exists(str(path.absolute()))
+    existing = db.document_exists(str(path.resolve()))
     if existing:
         result.doc_id = existing["id"]
         result.message = "Document already processed"
@@ -156,7 +156,7 @@ def process_document_sync(
 
     doc = db.create_document(
         filename=path.name,
-        file_path=str(path.absolute()),
+        file_path=str(path.resolve()),
         file_size=path.stat().st_size,
         title=path.stem,
         page_count=extraction.page_count,

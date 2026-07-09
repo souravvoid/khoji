@@ -20,7 +20,7 @@ interface Document {
 }
 
 interface ProcessingJob {
-  filePath: string
+  jobId: string
   filename: string
   originalPath?: string
   progress: number
@@ -40,8 +40,8 @@ interface DocumentState {
   removeDocument: (id: string) => Promise<void>
   setActiveDocument: (doc: Document | null) => void
   addProcessingJob: (job: ProcessingJob) => void
-  updateProcessingJob: (filePath: string, updates: Partial<ProcessingJob>) => void
-  removeProcessingJob: (filePath: string) => void
+  updateProcessingJob: (jobId: string, updates: Partial<ProcessingJob>) => void
+  removeProcessingJob: (jobId: string) => void
   setLoading: (loading: boolean) => void
 }
 
@@ -70,14 +70,14 @@ export const useDocumentStore = create<DocumentState>((set) => ({
     processingQueue: [...s.processingQueue, job],
   })),
 
-  updateProcessingJob: (filePath, updates) => set((s) => ({
+  updateProcessingJob: (jobId, updates) => set((s) => ({
     processingQueue: s.processingQueue.map((j) =>
-      j.filePath === filePath ? { ...j, ...updates } : j
+      j.jobId === jobId ? { ...j, ...updates } : j
     ),
   })),
 
-  removeProcessingJob: (filePath) => set((s) => ({
-    processingQueue: s.processingQueue.filter((j) => j.filePath !== filePath),
+  removeProcessingJob: (jobId) => set((s) => ({
+    processingQueue: s.processingQueue.filter((j) => j.jobId !== jobId),
   })),
 
   setLoading: (loading) => set({ loading }),

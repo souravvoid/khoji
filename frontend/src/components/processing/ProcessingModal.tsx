@@ -38,7 +38,7 @@ export function ProcessingModal() {
             </p>
           </div>
           <button
-            onClick={() => removeProcessingJob(activeJob.filePath)}
+            onClick={() => removeProcessingJob(activeJob.jobId)}
             aria-label="Dismiss processing notification"
             className="p-1.5 hover:bg-surface-hover rounded-none text-text-tertiary cursor-pointer"
           >
@@ -73,17 +73,15 @@ export function ProcessingModal() {
           {activeJob.status === 'error' && (
               <button
                 onClick={async () => {
-                  const path = activeJob.originalPath || activeJob.filePath
-                  if (path) {
-                    useDocumentStore.getState().updateProcessingJob(activeJob.filePath, { status: 'queued', progress: 0, error: undefined })
-                    try {
-                      const result = await processDocument(path)
-                      if (result?.doc_id) {
-                        useDocumentStore.getState().updateProcessingJob(activeJob.filePath, { status: 'complete', progress: 100, docId: result.doc_id })
-                      }
-                    } catch (e) {
-                      useDocumentStore.getState().updateProcessingJob(activeJob.filePath, { status: 'error', progress: 0, error: String(e) })
+                  if (!activeJob.originalPath) return
+                  useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { status: 'queued', progress: 0, error: undefined })
+                  try {
+                    const result = await processDocument(activeJob.originalPath)
+                    if (result?.doc_id) {
+                      useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { status: 'complete', progress: 100, docId: result.doc_id })
                     }
+                  } catch (e) {
+                    useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { status: 'error', progress: 0, error: String(e) })
                   }
                 }}
                 className="px-3 py-1.5 text-sm font-semibold uppercase tracking-wider text-text-primary hover:bg-surface-hover rounded-none border border-border-default transition-colors cursor-pointer"

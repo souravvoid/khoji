@@ -357,6 +357,7 @@ pub fn run() {
     let engine = start_python_engine().expect("Failed to start Python AI engine");
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .manage(PythonEngine {
             process: Mutex::new(engine),
         })
