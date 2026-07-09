@@ -204,6 +204,8 @@ def handle_chat(payload):
         "Provide a helpful answer based on the document context."
     )
     llm = get_llm()
+    if not llm.is_loaded():
+        llm.load()
     if llm.is_loaded():
         response = llm.generate(prompt)
     else:
