@@ -1,0 +1,151 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+@theme {
+  --color-primary-50: #f0f7ff;
+  --color-primary-100: #e0f0ff;
+  --color-primary-200: #b3dbff;
+  --color-primary-300: #80c0ff;
+  --color-primary-400: #4fa8ff;
+  --color-primary-500: var(--color-primary-500);
+  --color-primary-600: var(--color-primary-600);
+  --color-primary-700: #004d80;
+  --color-primary-800: #003355;
+  --color-primary-900: var(--color-primary-900);
+
+  --color-success-500: #0fa336;
+  --color-success-600: #0c822b;
+
+  --color-warning-500: #f4b400;
+  --color-warning-600: #c28f00;
+
+  --color-error-500: #e22718;
+  --color-error-600: #b31f13;
+
+  --color-bg-primary: var(--color-bg-primary);
+  --color-bg-secondary: var(--color-bg-secondary);
+  --color-bg-tertiary: var(--color-bg-tertiary);
+  --color-border-default: var(--color-border-default);
+  --color-border-hover: var(--color-border-hover);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-tertiary: var(--color-text-tertiary);
+  --color-text-inverse: var(--color-text-inverse);
+  --color-surface-card: var(--color-surface-card);
+  --color-surface-modal: var(--color-surface-modal);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-active: var(--color-surface-active);
+
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+
+  /* BMW-M industrial precision corners - sharp 0px corners by default */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 9999px;
+
+  --shadow-xs: var(--shadow-xs);
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-xl: var(--shadow-xl);
+  --shadow-2xl: var(--shadow-2xl);
+
+  --elevation-card: var(--shadow-sm);
+  --elevation-hover: var(--shadow-md);
+  --elevation-dropdown: var(--shadow-lg);
+  --elevation-modal: var(--shadow-xl);
+}
+
+@layer base {
+  * {
+    @apply border-border-default;
+  }
+
+  body {
+    @apply bg-bg-primary text-text-primary font-sans antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background-color: var(--color-primary-500);
+    color: var(--color-text-inverse);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  [data-theme="dark"] .glass {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* M Tricolor Stripe Divider */
+  .m-stripe {
+    background: linear-gradient(
+      to right,
+      var(--m-blue-light) 0%,
+      var(--m-blue-light) 33.3%,
+      var(--m-blue-dark) 33.3%,
+      var(--m-blue-dark) 66.6%,
+      var(--m-red) 66.6%,
+      var(--m-red) 100%
+    );
+  }
+
+  /* 3D Flashcard Flip */
+  .perspective-\[1000px\] {
+    perspective: 1000px;
+  }
+
+  .rotateY-180 {
+    transform: rotateY(180deg);
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  /* Thin hairline scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border-default) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: var(--color-border-default);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: var(--color-border-hover);
+  }
+}

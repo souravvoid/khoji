@@ -1,0 +1,18 @@
+[package]
+name = "khoji"
+version = "1.0.0"
+description = "Offline AI Knowledge Workspace"
+authors = ["Khoji Team"]
+edition = "2021"
+
+[lib]
+name = "khoji_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
