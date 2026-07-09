@@ -166,7 +166,6 @@ def handle_export_document(payload):
 
 
 def handle_get_models(payload):
-    from pathlib import Path
     from khoji_engine.ai.llm import MODEL_PRESETS, GGUF_DIR, get_llm
 
     active = get_llm().config.model_name
