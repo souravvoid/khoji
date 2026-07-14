@@ -1,6 +1,10 @@
 import { invoke } from '@tauri-apps/api/core'
 import { SEARCH_DEFAULT_LIMIT } from './constants'
 
+function isDesktop(): boolean {
+  return typeof window !== 'undefined' && '__TAURI__' in window
+}
+
 export interface Flashcard {
   id: string
   front: string
@@ -132,6 +136,7 @@ export async function generateQuiz(docId: string, count?: number): Promise<QuizQ
 }
 
 export async function getDocuments(): Promise<KhojiDocument[]> {
+  if (!isDesktop()) return []
   return parseResponse(await invoke('get_documents'))
 }
 
@@ -152,6 +157,7 @@ export async function getChatHistory(docId: string): Promise<ChatMessage[]> {
 }
 
 export async function getModels(): Promise<ModelInfo[]> {
+  if (!isDesktop()) return []
   return parseResponse(await invoke('get_models'))
 }
 
