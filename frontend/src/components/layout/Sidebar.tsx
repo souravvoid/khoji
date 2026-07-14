@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react'
 import {
   Library, Layers, HelpCircle, GitBranch, MessageSquare,
   Search, Settings, ChevronLeft, ChevronRight, Clock, Sparkles
@@ -32,8 +33,16 @@ const navItems: NavSection[] = [
   ]},
 ]
 
+const STUB_LABELS = new Set(['Flashcards', 'Quiz', 'Mind Maps', 'Timeline', 'Chat'])
+
 export function Sidebar() {
   const { sidebarOpen, toggleSidebar, setCurrentView, setSearchOpen, setSettingsOpen } = useUIStore()
+  const [hint, setHint] = useState('')
+
+  const showHint = useCallback((label: string) => {
+    setHint(`Select a document to use ${label}`)
+    setTimeout(() => setHint(''), 2500)
+  }, [])
 
   return (
     <aside
@@ -71,9 +80,10 @@ export function Sidebar() {
               <button
                 key={j}
                 onClick={() => {
-                  if (item.action === 'search') setSearchOpen(true)
-                  else if (item.action === 'settings') setSettingsOpen(true)
-                  else setCurrentView('library')
+                  if (item.action === 'search') { setSearchOpen(true); return }
+                  if (item.action === 'settings') { setSettingsOpen(true); return }
+                  if (STUB_LABELS.has(item.label)) { showHint(item.label); return }
+                  setCurrentView('library')
                 }}
                 className={`w-[calc(100%-16px)] flex items-center gap-3 px-3 py-2 mx-2 my-0.5 rounded-none text-sm
                   text-text-secondary hover:bg-surface-hover hover:text-text-primary transition-colors cursor-pointer
@@ -98,7 +108,7 @@ export function Sidebar() {
         <div className="px-4 py-3 border-t border-border-default">
           <div className="flex items-center gap-2 text-xs text-text-tertiary">
             <div className="w-2 h-2 rounded-full bg-success-500" />
-            <span>All systems ready</span>
+            <span>{hint || 'All systems ready'}</span>
           </div>
         </div>
       )}
