@@ -71,7 +71,10 @@ fn start_python_engine() -> Result<Child, String> {
         cwd.parent().map(|p| p.join("backend/python/khoji_engine/main.py")),
         Some(cwd.join("../../../backend/python/khoji_engine/main.py")),
         appimage_path,
-        std::env::var("KHOJI_ENGINE").ok().map(|p| std::path::PathBuf::from(p)),
+        std::env::var("KHOJI_ENGINE").ok().map(|p| {
+            let path = std::path::PathBuf::from(&p);
+            if path.is_dir() { path.join("khoji_engine/main.py") } else { path }
+        }),
         Some(cwd.join("khoji_engine/main.py")),
         find_engine_in_mount(),
     ];

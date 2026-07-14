@@ -22,9 +22,9 @@ export function PipelineVisualization({ stages }: PipelineVisualizationProps) {
     <div className="flex items-center gap-1">
       {stages.map((stage, i) => (
         <div key={stage.id} className="flex items-center gap-1 flex-1">
-          <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium transition-all
+          <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-medium transition-all duration-300
             ${stage.status === 'completed' ? 'bg-success-50 text-success-600' :
-              stage.status === 'active' ? 'bg-primary-100 text-primary-600 ring-2 ring-primary-500/30' :
+              stage.status === 'active' ? 'bg-primary-100 text-primary-600 ring-2 ring-primary-500/30 scale-110' :
               stage.status === 'error' ? 'bg-error-50 text-error-600' :
               'bg-bg-tertiary text-text-tertiary'}`}
           >

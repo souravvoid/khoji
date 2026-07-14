@@ -190,8 +190,11 @@ def handle_chat(payload):
     from khoji_engine.ai.llm import get_llm
     from khoji_engine.database.db import Database
 
-    message = payload.get("message", "")
+    message = (payload.get("message", "") or "").strip()
     doc_id = payload.get("doc_id", "")
+    if not message:
+        return {"status": "ok", "result": {"response": "Please enter a question about this document."}}
+
     db = Database()
     context = ""
     if doc_id:
@@ -210,8 +213,7 @@ def handle_chat(payload):
         response = llm.generate(prompt)
     else:
         response = (
-            f"I understand you're asking about: {message}. "
-            "The AI model is not yet loaded. Please download and load a model in Settings > Models."
+            "The AI model is not loaded. Go to Settings > Models to download and select a model."
         )
     return {"status": "ok", "result": {"response": response}}
 

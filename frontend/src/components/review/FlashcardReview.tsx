@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { ArrowLeft, X } from 'lucide-react'
+import { ArrowLeft, X, CheckCircle2 } from 'lucide-react'
 import { RatingButtons } from './RatingButtons'
 import { ReviewStats } from './ReviewStats'
 import { useReviewStore } from '../../stores/reviewStore'
@@ -44,8 +44,10 @@ export function FlashcardReview() {
 
       {isComplete ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-6">
-          <div className="text-4xl">🎉</div>
-          <h2 className="text-2xl font-bold text-text-primary uppercase tracking-wider">Review Complete!</h2>
+          <div className="w-14 h-14 rounded-none bg-success-50 border border-success-200 flex items-center justify-center">
+            <CheckCircle2 size={32} className="text-success-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-text-primary uppercase tracking-wider">Review Complete</h2>
           <ReviewStats stats={stats} />
           <button onClick={endReview} className="px-6 py-2.5 bg-text-primary border border-text-primary text-text-inverse hover:bg-transparent hover:text-text-primary rounded-none font-semibold uppercase tracking-wider transition-colors cursor-pointer">
             Return to Workspace

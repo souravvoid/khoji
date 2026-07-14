@@ -6,3 +6,4 @@ dist/
 ui/
 project-review/
 .agents/
+.gstack/

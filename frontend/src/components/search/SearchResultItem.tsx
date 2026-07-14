@@ -9,10 +9,22 @@ interface SearchResultItemProps {
     score: number
     docTitle?: string
   }
+  query?: string
   onClick: () => void
 }
 
-export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
+function highlightText(text: string, query: string) {
+  if (!query) return text
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  return parts.map((part) =>
+    part.toLowerCase() === query.toLowerCase()
+      ? `<mark class="bg-primary-100 text-primary-800 px-0.5 rounded-none">${part}</mark>`
+      : part
+  ).join('')
+}
+
+export function SearchResultItem({ result, onClick, query }: SearchResultItemProps) {
   return (
     <button
       onClick={onClick}
@@ -30,7 +42,11 @@ export function SearchResultItem({ result, onClick }: SearchResultItemProps) {
               <span className="text-xs text-text-tertiary truncate">in {result.docTitle}</span>
             )}
           </div>
-          <p className="text-sm text-text-secondary line-clamp-2">{result.snippet}</p>
+          {query ? (
+            <p className="text-sm text-text-secondary line-clamp-2" dangerouslySetInnerHTML={{ __html: highlightText(result.snippet, query) }} />
+          ) : (
+            <p className="text-sm text-text-secondary line-clamp-2">{result.snippet}</p>
+          )}
           <div className="flex items-center gap-3 mt-1.5">
             {result.page && <span className="text-xs text-text-tertiary">Page {result.page}</span>}
             <div className="flex items-center gap-1.5">

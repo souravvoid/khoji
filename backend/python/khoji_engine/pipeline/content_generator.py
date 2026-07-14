@@ -93,16 +93,17 @@ def _split_sentences(text: str) -> list[str]:
 
 def _is_definition(sentence: str) -> bool:
     patterns = [
-        r"^(.+?)\s+(?:is|are|refers to|means|denotes)\s+(.+)$",
+        r"^(.+?)\s+(?:is|are|refers to|means|denotes|is defined as|is known as|consists of|comprises|describes)\s+(.+)$",
         r"^(.+?)\s*[-–—:]\s+(.+)$",
+        r"^(.+?) refers\s+to\s+(.+)$",
     ]
     return any(re.match(p, sentence, re.IGNORECASE) for p in patterns)
 
 
 def _is_fact(sentence: str) -> bool:
-    return bool(re.search(r"\b\d+\b", sentence)) or bool(
-        re.search(r"\b(always|never|typically|usually|generally)\b", sentence, re.IGNORECASE)
-    )
+    has_meaningful_number = bool(re.search(r"\b\d{3,}\b", sentence) or re.search(r"\b\d+%", sentence))
+    has_statistical = bool(re.search(r"\b(always|never|typically|usually|generally|primarily|significantly|approximately)\b", sentence, re.IGNORECASE))
+    return has_meaningful_number or has_statistical
 
 
 def _definition_to_card(sent: str) -> Flashcard | None:
@@ -116,8 +117,14 @@ def _definition_to_card(sent: str) -> Flashcard | None:
 
 
 def _fact_to_card(sent: str) -> Flashcard | None:
-    if len(sent) > 300:
+    if len(sent) > 200:
         return None
+    parts = re.split(r";", sent)
+    if len(parts) >= 2:
+        return Flashcard(front=parts[0].strip(), back="".join(parts[1:]).strip())
+    numbers = re.findall(r"\b\d{3,}\b", sent)
+    if numbers:
+        return Flashcard(front=sent.replace(numbers[0], "___"), back=f"The value is {numbers[0]}")
     return Flashcard(front=sent, back="(See source document)")
 
 
@@ -128,7 +135,8 @@ def _definition_to_quiz(sent: str, all_sentences: list[str]) -> QuizQuestion | N
     term = m.group(1).strip()
     definition = m.group(2).strip()
 
-    distractors = _get_distractors(definition, all_sentences, 3)
+    distractors = _get_distractors(definition, all_sentences, 4)
+    distractors = [d for d in distractors if d != sent][:3]
     options = [definition] + distractors
     random.shuffle(options)
     idx = options.index(definition)
@@ -148,21 +156,44 @@ def _fact_to_quiz(sent: str, all_sentences: list[str]) -> QuizQuestion | None:
 
     numbers = re.findall(r"\d+", sent)
     if numbers:
-        q_text = sent.replace(numbers[0], "___")
-        distractors = [str(int(numbers[0]) + d) for d in [-5, -2, 3, 7]]
+        q_text = sent.replace(numbers[0], "___", 1)
+        num = int(numbers[0])
+        offset = max(1, num // 10 or 1)
+        distractors = [str(num + offset * d) for d in [-5, -2, 3, 7]]
+        distractors = [d for d in distractors if d != numbers[0]][:3]
         options = [numbers[0]] + distractors[:3]
         random.shuffle(options)
         return QuizQuestion(
-            question=q_text,
+            question=f"Fill in the blank: {q_text}",
             options=options,
             correct_answer_index=options.index(numbers[0]),
             explanation=sent,
             difficulty="easy",
         )
+
+    words = sent.split()
+    for word in set(words):
+        if len(word) > 5 and word[0].isupper() and word not in {"The", "This", "That", "These", "Those"}:
+            distractors = _get_distractors(word, all_sentences, 3)
+            if len(distractors) >= 3:
+                q_text = sent.replace(word, "___", 1)
+                options = [word] + distractors[:3]
+                random.shuffle(options)
+                return QuizQuestion(
+                    question=f"Complete the sentence: {q_text}",
+                    options=options,
+                    correct_answer_index=options.index(word),
+                    explanation=sent,
+                    difficulty="medium",
+                )
     return None
 
 
 def _get_distractors(answer: str, all_sentences: list[str], count: int = 3) -> list[str]:
-    candidates = [s for s in all_sentences if s != answer and 10 < len(s) < 300]
+    answer_len = len(answer)
+    candidates = [
+        s for s in all_sentences
+        if s != answer and abs(len(s) - answer_len) < 50 and 10 < len(s) < 300
+    ]
     random.shuffle(candidates)
     return candidates[:count]

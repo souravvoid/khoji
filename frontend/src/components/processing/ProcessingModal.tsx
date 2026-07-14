@@ -4,16 +4,7 @@ import { ProgressBar } from '../ui/ProgressBar'
 import { PipelineVisualization } from './PipelineVisualization'
 import { useDocumentStore } from '../../stores/documentStore'
 import { processDocument } from '../../lib/ipc'
-
-const PIPELINE_STAGES = [
-  { id: 'ocr', label: 'OCR' },
-  { id: 'extract', label: 'Extract' },
-  { id: 'markdown', label: 'Markdown' },
-  { id: 'chunking', label: 'Chunking' },
-  { id: 'embedding', label: 'Embeddings' },
-  { id: 'flashcards', label: 'Cards' },
-  { id: 'quiz', label: 'Quiz' },
-]
+import { PIPELINE_STAGES } from '../../lib/constants'
 
 export function ProcessingModal() {
   const { processingQueue, removeProcessingJob } = useDocumentStore()

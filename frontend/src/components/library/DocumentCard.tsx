@@ -57,7 +57,7 @@ export function DocumentCard({ document: doc, onClick, onDelete, onExport }: Doc
           </div>
           <div className="flex items-center gap-2 mt-2">
             <Badge variant={statusColors[doc.status as keyof typeof statusColors] || 'neutral'} size="sm">
-              {doc.status}
+              <span className={doc.status === 'processing' ? 'animate-pulse' : ''}>{doc.status}</span>
             </Badge>
             {doc.favorite && <Star size={12} className="text-warning-500 fill-warning-500" />}
           </div>

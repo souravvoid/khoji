@@ -58,12 +58,12 @@ export function TimelineTab() {
         <div className="absolute left-[19px] top-0 bottom-0 w-0.5 bg-primary-200" />
         <div className="space-y-6">
           {events.map((event: TimelineEvent, i: number) => (
-            <div key={i} className="relative flex gap-4">
+            <div key={i} className="relative flex gap-4 group">
               <div className="flex-shrink-0 w-10 flex items-start justify-center">
-                <div className="w-4 h-4 rounded-full bg-primary-500 border-2 border-white shadow-sm mt-1 z-10" />
+                <div className="w-4 h-4 rounded-full bg-primary-500 border-2 border-white shadow-sm mt-1 z-10 transition-transform group-hover:scale-125" />
               </div>
               <div className="flex-1 pb-2">
-                <span className="inline-block px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-full mb-2">
+                <span className="inline-block px-2 py-0.5 bg-primary-100 text-primary-700 text-xs font-medium rounded-none mb-2">
                   {event.date}
                 </span>
                 <h4 className="text-sm font-semibold text-text-primary">{event.title}</h4>

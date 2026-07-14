@@ -142,6 +142,7 @@ export function SearchModal() {
                   score: Math.round((r.score || 0) * 100),
                   docTitle: r.doc_title,
                 }}
+                query={query}
                 onClick={() => handleOpenResult(r)}
               />
             ))

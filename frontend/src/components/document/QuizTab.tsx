@@ -70,6 +70,28 @@ export function QuizTab() {
     }
   }
 
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (view !== 'active') return
+      const q = questions[currentQ]
+      if (!q) return
+      if (!showResult) {
+        if (e.key >= '1' && e.key <= '4') {
+          const idx = parseInt(e.key) - 1
+          if (idx < (q.options || []).length) setSelected(idx)
+        }
+        if (e.key === 'Enter' && selected !== null) handleConfirm()
+      } else {
+        if (e.key === 'Enter' || e.key === 'ArrowRight' || e.key === ' ') {
+          e.preventDefault()
+          handleNext()
+        }
+      }
+    }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  })
+
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
