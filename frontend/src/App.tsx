@@ -7,7 +7,7 @@ import { useUIStore } from './stores/uiStore'
 import { useDocumentStore } from './stores/documentStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useKeyboard } from './hooks/useKeyboard'
-import { getDocuments, processDocument, getDocument, type KhojiDocument } from './lib/ipc'
+import { getDocuments, processDocumentStream, getDocument, type KhojiDocument } from './lib/ipc'
 import { PROCESSING_JOB_DISMISS_MS } from './lib/constants'
 
 function App() {
@@ -92,11 +92,16 @@ function App() {
           continue
         }
 
-        updateProcessingJob(jobId, { stage: 'processing', originalPath: filePath, status: 'processing', progress: 50 })
+        updateProcessingJob(jobId, { stage: 'ocr', originalPath: filePath, status: 'processing', progress: 10 })
 
-        const result = await processDocument(filePath)
+        const streamResult = await processDocumentStream(
+          filePath,
+          (stage, pct) => {
+            updateProcessingJob(jobId, { stage, status: 'processing', progress: pct })
+          },
+        )
 
-        const docId = result?.doc_id
+        const docId = streamResult?.doc_id
         if (docId) {
           const docData = await getDocument(docId)
 

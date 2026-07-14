@@ -3,7 +3,7 @@ import { Modal } from '../ui/Modal'
 import { ProgressBar } from '../ui/ProgressBar'
 import { PipelineVisualization } from './PipelineVisualization'
 import { useDocumentStore } from '../../stores/documentStore'
-import { processDocument } from '../../lib/ipc'
+import { processDocumentStream } from '../../lib/ipc'
 import { PIPELINE_STAGES } from '../../lib/constants'
 
 export function ProcessingModal() {
@@ -67,7 +67,12 @@ export function ProcessingModal() {
                   if (!activeJob.originalPath) return
                   useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { status: 'queued', progress: 0, error: undefined })
                   try {
-                    const result = await processDocument(activeJob.originalPath)
+                    const result = await processDocumentStream(
+                      activeJob.originalPath,
+                      (stage, pct) => {
+                        useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { stage, status: 'processing', progress: pct })
+                      },
+                    )
                     if (result?.doc_id) {
                       useDocumentStore.getState().updateProcessingJob(activeJob.jobId, { status: 'complete', progress: 100, docId: result.doc_id })
                     }

@@ -3,6 +3,8 @@ use std::path::Path;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 use std::thread;
+use serde_json::Value;
+use tauri::Emitter;
 
 const ALLOWED_EXTENSIONS: &[&str] = &["pdf", "docx", "pptx", "epub", "png", "jpg", "jpeg"];
 
@@ -24,6 +26,31 @@ fn validate_file_path(file_path: &str) -> Result<String, String> {
 
 struct PythonEngine {
     process: Mutex<Child>,
+}
+
+/// Read NDJSON lines from Python stdout until `{"type":"end"}` or `{"type":"error"}`.
+/// Calls `on_line` for each line so the caller can emit Tauri events.
+fn read_stream<F>(engine: &mut Child, mut on_line: F) -> Result<Value, String>
+where
+    F: FnMut(&Value),
+{
+    let stdout = engine.stdout.as_mut().ok_or("No stdout")?;
+    let reader = BufReader::new(stdout);
+    for line in reader.lines() {
+        let line = line.map_err(|e| format!("Read error: {}", e))?;
+        if line.trim().is_empty() {
+            continue;
+        }
+        let val: Value = serde_json::from_str(&line)
+            .map_err(|e| format!("JSON parse error: {}", e))?;
+        let typ = val.get("type").and_then(|v| v.as_str()).unwrap_or("");
+        match typ {
+            "end" => return Ok(val.get("result").cloned().unwrap_or(Value::Null)),
+            "error" => return Err(val.get("error").and_then(|v| v.as_str()).unwrap_or("Stream error").to_string()),
+            _ => on_line(&val),
+        }
+    }
+    Err("Stream ended unexpectedly".to_string())
 }
 
 fn find_python() -> String {
@@ -156,6 +183,60 @@ fn send_message(engine: &mut Child, message: &str) -> Result<String, String> {
         .map_err(|e| format!("Read error: {}", e))?;
 
     Ok(response.trim().to_string())
+}
+
+/// Streamed chat — emits `stream-token` events for each token, then returns the full response.
+#[tauri::command]
+fn ask_ai_stream(
+    app: tauri::AppHandle,
+    state: tauri::State<PythonEngine>,
+    doc_id: String,
+    message: String,
+) -> Result<String, String> {
+    let mut engine = state.process.lock().map_err(|e| e.to_string())?;
+    let msg = serde_json::json!({
+        "action": "chat_stream",
+        "payload": { "doc_id": doc_id, "message": message }
+    });
+    writeln!(engine.stdin.as_mut().ok_or("No stdin")?, "{}", msg)
+        .map_err(|e| format!("Write error: {}", e))?;
+
+    let app_clone = app.clone();
+    let result = read_stream(&mut engine, |val| {
+        if let Some(content) = val.get("content").and_then(|v| v.as_str()) {
+            let _ = app_clone.emit("stream-token", content.to_string());
+        }
+    })?;
+
+    Ok(serde_json::to_string(&result).unwrap_or_default())
+}
+
+/// Streamed document processing — emits `progress-update` events for each stage.
+/// Returns the final result payload from Python.
+#[tauri::command]
+fn process_document_stream(
+    app: tauri::AppHandle,
+    state: tauri::State<PythonEngine>,
+    file_path: String,
+) -> Result<String, String> {
+    let safe_path = validate_file_path(&file_path)?;
+    let mut engine = state.process.lock().map_err(|e| e.to_string())?;
+    let msg = serde_json::json!({
+        "action": "process_document_stream",
+        "payload": { "file_path": safe_path }
+    });
+    writeln!(engine.stdin.as_mut().ok_or("No stdin")?, "{}", msg)
+        .map_err(|e| format!("Write error: {}", e))?;
+
+    let app_clone = app.clone();
+    let result = read_stream(&mut engine, |val| {
+        if let Some(stage) = val.get("stage").and_then(|v| v.as_str()) {
+            let pct = val.get("pct").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let _ = app_clone.emit("progress-update", serde_json::json!({"stage": stage, "pct": pct}));
+        }
+    })?;
+
+    Ok(serde_json::to_string(&result).unwrap_or_default())
 }
 
 #[tauri::command]
@@ -376,8 +457,10 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             process_document,
+            process_document_stream,
             search_documents,
             ask_ai,
+            ask_ai_stream,
             generate_flashcards,
             generate_quiz,
             get_documents,

@@ -4,7 +4,7 @@ import { ChatMessage } from './ChatMessage'
 import { ChatInput } from './ChatInput'
 import { useChatStore } from '../../stores/chatStore'
 import { useDocumentStore } from '../../stores/documentStore'
-import { askAi } from '../../lib/ipc'
+import { askAiStream } from '../../lib/ipc'
 
 export function ChatPanel() {
   const { activeSessionId, sessions, isStreaming, addMessage, createSession, setIsStreaming } = useChatStore()
@@ -40,19 +40,26 @@ export function ChatPanel() {
     })
 
     setIsStreaming(true)
+    const msgId = crypto.randomUUID()
     addMessage(activeSession.id, {
-      id: crypto.randomUUID(),
+      id: msgId,
       role: 'assistant',
       content: '',
       timestamp: new Date().toISOString(),
     })
 
+    let accumulated = ''
     try {
-      const result = await askAi(activeDocument?.id || '', message)
-      const response = result?.response || String(result)
-      
-      const { updateLastMessage } = useChatStore.getState()
-      updateLastMessage(activeSession.id, response)
+      await askAiStream(
+        activeDocument?.id || '',
+        message,
+        (token) => {
+          accumulated += token
+          const { updateLastMessage } = useChatStore.getState()
+          updateLastMessage(activeSession.id, accumulated)
+        },
+        () => {},
+      )
     } catch (e) {
       const { updateLastMessage } = useChatStore.getState()
       updateLastMessage(activeSession.id, `Error: ${e}`)

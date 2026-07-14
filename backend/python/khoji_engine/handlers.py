@@ -320,6 +320,73 @@ def handle_select_model(payload):
     return {"status": "ok", "result": {"model_id": model_id, "selected": True}}
 
 
+# ── Streaming handlers (emit multiple NDJSON lines) ──────────────
+
+
+def handle_chat_stream(payload, emit):
+    from khoji_engine.ai.llm import get_llm
+    from khoji_engine.database.db import Database
+
+    message = (payload.get("message", "") or "").strip()
+    doc_id = payload.get("doc_id", "")
+    if not message:
+        emit({"type": "end", "result": {"response": "Please enter a question."}})
+        return
+
+    db = Database()
+    context = ""
+    if doc_id:
+        notes = db.get_notes(doc_id)
+        if notes:
+            context = notes.get("content", "")[:CHAT_CONTEXT_MAX_CHARS]
+    prompt = (
+        f"Context from document:\n{context}\n\n"
+        f"User question: {message}\n\n"
+        "Provide a helpful answer based on the document context."
+    )
+    llm = get_llm()
+    if not llm.is_loaded():
+        llm.load()
+    if llm.is_loaded():
+        for token in llm.generate_stream(prompt):
+            emit({"type": "token", "content": token})
+        emit({"type": "end", "result": {"response": ""}})
+    else:
+        emit({"type": "end", "result": {
+            "response": "The AI model is not loaded. Go to Settings > Models to download and select a model."
+        }})
+
+
+def handle_process_document_stream(payload, emit):
+    from khoji_engine.pipeline.processor import process_document_sync
+    from pathlib import Path
+
+    file_path = payload.get("file_path", "")
+    if not file_path or not Path(file_path).exists():
+        emit({"type": "error", "error": f"File not found: {file_path}"})
+        return
+
+    def on_progress(stage: str, pct: int):
+        emit({"type": "progress", "stage": stage, "pct": pct})
+
+    result = process_document_sync(file_path, progress_callback=on_progress)
+    emit({"type": "end", "result": {
+        "doc_id": result.doc_id,
+        "page_count": result.page_count,
+        "chunk_count": result.chunk_count,
+        "flashcard_count": result.flashcard_count,
+        "quiz_count": result.quiz_count,
+        "success": result.success,
+        "message": result.message,
+    }})
+
+
+STREAM_HANDLERS = {
+    "chat_stream": handle_chat_stream,
+    "process_document_stream": handle_process_document_stream,
+}
+
+
 # Dispatch table: protocol action -> handler function.
 ACTION_HANDLERS = {
     "ping": handle_ping,

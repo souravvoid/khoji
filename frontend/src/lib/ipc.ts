@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 import { SEARCH_DEFAULT_LIMIT } from './constants'
 
 function canInvoke(): boolean {
@@ -187,4 +188,40 @@ export async function generateMindmap(docId: string): Promise<string> {
 
 export async function saveNotes(docId: string, content: string): Promise<void> {
   await invoke('save_notes', { docId, content })
+}
+
+// ── Streaming IPC ──────────────────────────────────────────────
+
+export async function askAiStream(
+  docId: string,
+  message: string,
+  onToken: (token: string) => void,
+  onComplete: () => void,
+): Promise<void> {
+  const unlisten = await listen<string>('stream-token', (event) => {
+    onToken(event.payload)
+  })
+
+  try {
+    await invoke('ask_ai_stream', { docId, message })
+  } finally {
+    unlisten()
+    onComplete()
+  }
+}
+
+export async function processDocumentStream(
+  filePath: string,
+  onProgress: (stage: string, pct: number) => void,
+): Promise<{ doc_id: string }> {
+  const unlisten = await listen<{ stage: string; pct: number }>('progress-update', (event) => {
+    onProgress(event.payload.stage, event.payload.pct)
+  })
+
+  try {
+    const raw = await invoke('process_document_stream', { filePath })
+    return parseResponse<{ doc_id: string }>(raw)
+  } finally {
+    unlisten()
+  }
 }
