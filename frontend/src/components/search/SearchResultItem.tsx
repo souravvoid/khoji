@@ -13,12 +13,23 @@ interface SearchResultItemProps {
   onClick: () => void
 }
 
+function escapeHtml(unsafe: string): string {
+  return unsafe
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function highlightText(text: string, query: string) {
-  if (!query) return text
-  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const parts = text.split(new RegExp(`(${escaped})`, 'gi'))
+  const escapedText = escapeHtml(text)
+  if (!query) return escapedText
+  const escapedQuery = escapeHtml(query)
+  const escapedPattern = escapedQuery.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const parts = escapedText.split(new RegExp(`(${escapedPattern})`, 'gi'))
   return parts.map((part) =>
-    part.toLowerCase() === query.toLowerCase()
+    part.toLowerCase() === escapedQuery.toLowerCase()
       ? `<mark class="bg-primary-100 text-primary-800 px-0.5 rounded-none">${part}</mark>`
       : part
   ).join('')
