@@ -40,7 +40,7 @@ export function DocumentCard({ document: doc, onClick, onDelete, onExport, disab
             <h3 className="text-sm font-semibold text-text-primary truncate" data-testid="document-title">{doc.title || doc.filename}</h3>
             <Dropdown
               trigger={
-                <button aria-label="Document actions" disabled={disabled} className="p-1 rounded-none opacity-0 group-hover:opacity-100 hover:bg-surface-hover transition-opacity cursor-pointer disabled:opacity-50">
+                <button aria-label="Document actions" disabled={disabled} className="p-1 rounded-none opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-hover transition-opacity cursor-pointer disabled:opacity-50">
                   <MoreHorizontal size={14} className="text-text-tertiary" />
                 </button>
               }
