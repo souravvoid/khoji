@@ -152,8 +152,24 @@ export async function deleteDocument(docId: string): Promise<void> {
   await invoke('delete_document', { docId })
 }
 
-export async function exportDocument(docId: string, format: string): Promise<ExportResult> {
-  return parseResponse(await invoke('export_document', { docId, format }))
+export interface ExportInclude {
+  notes?: boolean
+  flashcards?: boolean
+  quiz?: boolean
+}
+
+export async function exportDocument(
+  docId: string,
+  format: string,
+  include?: ExportInclude,
+): Promise<ExportResult> {
+  return parseResponse(
+    await invoke('export_document', {
+      docId,
+      format,
+      ...(include ? { include } : {}),
+    }),
+  )
 }
 
 export interface ChatHistorySession {

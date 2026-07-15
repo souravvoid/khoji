@@ -2,9 +2,8 @@ import { useState } from 'react'
 import { BookOpen } from 'lucide-react'
 import { EmptyState } from '../ui/EmptyState'
 import { DocumentCard } from './DocumentCard'
-import { ExportDialog } from '../document/ExportDialog'
+import { exportDocument } from '../../lib/ipc'
 import { useDocumentStore } from '../../stores/documentStore'
-import { useUIStore } from '../../stores/uiStore'
 
 interface LibraryViewProps {
   onUpload: () => void
@@ -12,9 +11,28 @@ interface LibraryViewProps {
 }
 
 export function LibraryView({ onUpload, onDocumentClick }: LibraryViewProps) {
-  const { documents, removeDocument, setActiveDocument } = useDocumentStore()
-  const { setActiveDocumentId, setCurrentView } = useUIStore()
-  const [exportDocId, setExportDocId] = useState<string | null>(null)
+  const { documents, removeDocument } = useDocumentStore()
+  const [exportingId, setExportingId] = useState<string | null>(null)
+
+  const handleExport = async (docId: string, filename: string) => {
+    setExportingId(docId)
+    try {
+      const result = await exportDocument(docId, 'csv')
+      const content = result?.content || ''
+      const downloadName = result?.filename || `${filename}.csv`
+      const blob = new Blob([content], { type: 'text/csv' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = downloadName
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      console.error('Export failed:', e)
+    } finally {
+      setExportingId(null)
+    }
+  }
 
   if (documents.length === 0) {
     return (
@@ -42,18 +60,11 @@ export function LibraryView({ onUpload, onDocumentClick }: LibraryViewProps) {
             document={doc}
             onClick={() => onDocumentClick(doc.id)}
             onDelete={() => removeDocument(doc.id)}
-            onExport={() => {
-              setActiveDocument(doc)
-              setActiveDocumentId(doc.id)
-              setCurrentView('document')
-              setExportDocId(doc.id)
-            }}
+            onExport={() => handleExport(doc.id, doc.title || doc.filename)}
+            disabled={exportingId === doc.id}
           />
         ))}
       </div>
-      {exportDocId && (
-        <ExportDialog open={!!exportDocId} onClose={() => setExportDocId(null)} />
-      )}
     </div>
   )
 }

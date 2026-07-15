@@ -236,7 +236,25 @@ _default_llm: LocalLLM | None = None
 def get_llm() -> LocalLLM:
     global _default_llm
     if _default_llm is None:
-        _default_llm = LocalLLM()
+        probe = LocalLLM()
+        try:
+            # ponytail: auto-select model by available RAM on first init
+            llm = LocalLLM(probe.detect_hardware())
+        except Exception as e:
+            logger.warning("Hardware detection failed, using default model: %s", e)
+            llm = probe
+        # ponytail: a cached GGUF can be corrupt/incomplete; fall back to
+        # any other cached model that actually loads so chat never dies.
+        if not llm.load():
+            logger.warning("Selected model failed to load; trying fallbacks")
+            for name in MODEL_PRESETS:
+                if name == llm.config.model_name:
+                    continue
+                cand = LocalLLM(LLMConfig(model_name=name))
+                if cand.load():
+                    llm = cand
+                    break
+        _default_llm = llm
     return _default_llm
 
 

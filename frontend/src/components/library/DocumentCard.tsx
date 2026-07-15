@@ -18,9 +18,10 @@ interface DocumentCardProps {
   onClick: () => void
   onDelete?: () => void
   onExport?: () => void
+  disabled?: boolean
 }
 
-export function DocumentCard({ document: doc, onClick, onDelete, onExport }: DocumentCardProps) {
+export function DocumentCard({ document: doc, onClick, onDelete, onExport, disabled }: DocumentCardProps) {
   const statusColors = {
     ready: 'success',
     processing: 'warning',
@@ -29,7 +30,7 @@ export function DocumentCard({ document: doc, onClick, onDelete, onExport }: Doc
   } as const
 
   return (
-    <Card variant="interactive" padding="md" onClick={onClick} data-testid="document-card" data-document-id={doc.id} className="group relative border-l-2 hover:border-l-primary-500 transition-all">
+    <Card variant="interactive" padding="md" onClick={disabled ? undefined : onClick} data-testid="document-card" data-document-id={doc.id} className="group relative border-l-2 hover:border-l-primary-500 transition-all">
       <div className="flex items-start gap-3">
         <div className="p-2.5 rounded-none bg-bg-tertiary text-text-primary border border-border-default flex-shrink-0">
           <FileText size={20} />
@@ -39,12 +40,12 @@ export function DocumentCard({ document: doc, onClick, onDelete, onExport }: Doc
             <h3 className="text-sm font-semibold text-text-primary truncate" data-testid="document-title">{doc.title || doc.filename}</h3>
             <Dropdown
               trigger={
-                <button aria-label="Document actions" className="p-1 rounded-none opacity-0 group-hover:opacity-100 hover:bg-surface-hover transition-opacity cursor-pointer">
+                <button aria-label="Document actions" disabled={disabled} className="p-1 rounded-none opacity-0 group-hover:opacity-100 focus:opacity-100 hover:bg-surface-hover transition-opacity cursor-pointer disabled:opacity-50">
                   <MoreHorizontal size={14} className="text-text-tertiary" />
                 </button>
               }
               items={[
-                { label: 'Export', onClick: onExport || (() => {}) },
+                { label: disabled ? 'Exporting…' : 'Export', onClick: onExport || (() => {}), disabled },
                 { label: 'Delete', onClick: onDelete || (() => {}), variant: 'danger' },
               ]}
               align="right"

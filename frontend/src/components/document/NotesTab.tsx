@@ -1,21 +1,56 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { FileEdit, Eye } from 'lucide-react'
+import { FileEdit, Eye, Loader2 } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
+import { getDocument } from '../../lib/ipc'
 
 interface NotesTabProps {
-  content: string
+  docId: string
   onEdit?: (content: string) => void
 }
 
-export function NotesTab({ content, onEdit }: NotesTabProps) {
+export function NotesTab({ docId, onEdit }: NotesTabProps) {
+  const [content, setContent] = useState('')
   const [editing, setEditing] = useState(false)
   const [editContent, setEditContent] = useState(content)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    getDocument(docId)
+      .then((doc) => {
+        if (!cancelled) setContent(doc?.notes?.content || '')
+      })
+      .catch(() => {
+        if (!cancelled) setContent('')
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [docId])
+
+  useEffect(() => {
+    setEditContent(content)
+    setEditing(false)
+  }, [content])
 
   const handleSave = () => {
     onEdit?.(editContent)
+    setContent(editContent)
     setEditing(false)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-text-tertiary text-sm">
+        <Loader2 size={20} className="animate-spin" />
+      </div>
+    )
   }
 
   if (!content) {

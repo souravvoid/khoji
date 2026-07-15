@@ -88,6 +88,7 @@ def handle_generate_flashcards(payload):
     notes = db.get_notes(doc_id)
     text = notes.get("content", "") if notes else ""
     cards = generate_flashcards(text)
+    db.delete_flashcards(doc_id)
     saved = db.add_flashcards(doc_id, cards)
     return {"status": "ok", "result": [{
         "id": c["id"],
@@ -110,6 +111,7 @@ def handle_generate_quiz(payload):
     notes = db.get_notes(doc_id)
     text = notes.get("content", "") if notes else ""
     questions = generate_quiz(text, num_questions=count)
+    db.delete_quiz_questions(doc_id)
     saved = db.add_quiz_questions(doc_id, questions)
     return {"status": "ok", "result": [{
         "id": q["id"],
@@ -156,13 +158,16 @@ def handle_delete_document(payload):
 
 
 def handle_export_document(payload):
-    from khoji_engine.pipeline.exporter import export_document
+    from khoji_engine.pipeline.exporter import export_document, FORMAT_HANDLERS
     from khoji_engine.database.db import Database
 
     doc_id = payload.get("doc_id", "")
     fmt = payload.get("format", "markdown")
+    if fmt not in FORMAT_HANDLERS:
+        return {"status": "error", "error": f"Unknown export format: {fmt}"}
+    include = payload.get("include") or {"notes": True, "flashcards": True, "quiz": True}
     db = Database()
-    filename, content = export_document(doc_id, fmt, db)
+    filename, content = export_document(doc_id, fmt, db, include=include)
     return {"status": "ok", "result": {"filename": filename, "content": content}}
 
 
@@ -237,7 +242,9 @@ def handle_download_model(payload):
     if model_id not in MODEL_PRESETS:
         return {"status": "error", "error": f"Unknown model: {model_id}"}
     llm = LocalLLM(LLMConfig(model_name=model_id))
-    llm.ensure_model()
+    ok = llm.ensure_model()
+    if not ok:
+        return {"status": "error", "error": llm.state.error or f"Failed to download model: {model_id}"}
     return {"status": "ok", "result": {"model_id": model_id, "downloaded": True}}
 
 
@@ -316,7 +323,7 @@ def handle_select_model(payload):
 
     model_id = payload.get("model_id", "")
     if model_id not in MODEL_PRESETS:
-        return {"status": "error", "message": f"Unknown model: {model_id}"}
+        return {"status": "error", "error": f"Unknown model: {model_id}"}
     set_model(model_id)
     return {"status": "ok", "result": {"model_id": model_id, "selected": True}}
 

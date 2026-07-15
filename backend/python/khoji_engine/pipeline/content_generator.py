@@ -173,20 +173,34 @@ def _fact_to_quiz(sent: str, all_sentences: list[str]) -> QuizQuestion | None:
 
     words = sent.split()
     for word in set(words):
-        if len(word) > 5 and word[0].isupper() and word not in {"The", "This", "That", "These", "Those"}:
-            distractors = _get_distractors(word, all_sentences, 3)
+        clean_word = re.sub(r"\W+", "", word)
+        if len(clean_word) > 5 and clean_word[0].isupper() and clean_word not in {"The", "This", "That", "These", "Those"}:
+            distractors = _get_word_distractors(clean_word, all_sentences, 3)
             if len(distractors) >= 3:
                 q_text = sent.replace(word, "___", 1)
-                options = [word] + distractors[:3]
+                options = [clean_word] + distractors[:3]
                 random.shuffle(options)
                 return QuizQuestion(
                     question=f"Complete the sentence: {q_text}",
                     options=options,
-                    correct_answer_index=options.index(word),
+                    correct_answer_index=options.index(clean_word),
                     explanation=sent,
                     difficulty="medium",
                 )
     return None
+
+
+def _get_word_distractors(word: str, all_sentences: list[str], count: int = 3) -> list[str]:
+    all_words = []
+    is_upper = word[0].isupper()
+    for s in all_sentences:
+        for w in re.findall(r"\b[a-zA-Z]{3,}\b", s):
+            if w.lower() != word.lower() and w[0].isupper() == is_upper:
+                all_words.append(w)
+    unique_words = list(set(all_words))
+    unique_words.sort(key=lambda w: abs(len(w) - len(word)))
+    random.shuffle(unique_words[:count * 3])
+    return unique_words[:count]
 
 
 def _get_distractors(answer: str, all_sentences: list[str], count: int = 3) -> list[str]:

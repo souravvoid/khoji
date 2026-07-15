@@ -206,6 +206,11 @@ class Database:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def delete_flashcards(self, doc_id: str) -> None:
+        # ponytail: regenerating must replace, not stack onto existing rows
+        self.conn.execute("DELETE FROM flashcards WHERE document_id = ?", (doc_id,))
+        self.conn.commit()
+
     def update_flashcard_review(self, card_id: str, quality: int) -> dict[str, Any] | None:
         row = self.conn.execute("SELECT * FROM flashcards WHERE id = ?", (card_id,)).fetchone()
         if not row:
@@ -279,6 +284,11 @@ class Database:
             d["options"] = json.loads(d["options_json"])
             results.append(d)
         return results
+
+    def delete_quiz_questions(self, doc_id: str) -> None:
+        # ponytail: regenerating must replace, not stack onto existing rows
+        self.conn.execute("DELETE FROM quiz_questions WHERE document_id = ?", (doc_id,))
+        self.conn.commit()
 
     # ── Chat ─────────────────────────────────────────────────────
     def create_chat_session(self, title: str = "New Chat", doc_id: str | None = None) -> dict[str, Any]:

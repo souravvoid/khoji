@@ -34,7 +34,11 @@ export function ExportDialog({ open, onClose }: ExportDialogProps) {
     
     setExporting(true)
     try {
-      const result = await exportDocumentApi(activeDocument.id, selectedFormat)
+      const result = await exportDocumentApi(activeDocument.id, selectedFormat, {
+        notes: includeNotes,
+        flashcards: includeFlashcards,
+        quiz: includeQuiz,
+      })
       const content = result?.content || String(result)
       const filename = result?.filename || `${activeDocument.title || 'document'}.${selectedFormat === 'markdown' ? 'md' : selectedFormat}`
       
