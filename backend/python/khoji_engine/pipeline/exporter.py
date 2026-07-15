@@ -61,7 +61,7 @@ def export_quiz_json(doc_id: str, db: Database, include: dict | None = None) -> 
     return json.dumps(export_data, indent=2, ensure_ascii=False)
 
 
-def export_full_json(doc_id: str, db: Database) -> str:
+def export_full_json(doc_id: str, db: Database, include: dict | None = None) -> str:
     data = db.get_full_document_data(doc_id)
     if not data:
         return "{}"
