@@ -67,7 +67,7 @@ export function DocumentWorkspace() {
         <div className="flex-1 flex flex-col min-w-0">
           <Tabs tabs={workspaceTabs} value={activeTab} onChange={setActiveTab} />
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'notes' && <NotesTab content={activeDocument.notes || ''} onEdit={handleSaveNotes} />}
+            {activeTab === 'notes' && <NotesTab docId={activeDocument.id} onEdit={handleSaveNotes} />}
             {activeTab === 'flashcards' && <FlashcardsTab />}
             {activeTab === 'quiz' && <QuizTab />}
             {activeTab === 'mindmap' && <MindMapTab />}

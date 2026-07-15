@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from 'react'
+import { useEffect, useCallback, useState, useRef } from 'react'
 import { AppShell } from './components/layout/AppShell'
 import { LibraryView } from './components/library/LibraryView'
 import { DocumentWorkspace } from './components/document/DocumentWorkspace'
@@ -39,22 +39,36 @@ function App() {
     try {
       const docs = await getDocuments()
       if (docs && docs.length > 0) {
-        setDocuments(docs.map((d: KhojiDocument) => ({
-          id: d.id,
-          filename: d.filename,
-          title: d.title || d.filename,
-          file_path: d.file_path,
-          file_size: d.file_size,
-          mime_type: d.mime_type || 'application/pdf',
-          page_count: d.page_count,
-          status: d.status,
-          created_at: d.created_at,
-          updated_at: d.updated_at,
-          notes: '',
-          flashcard_count: 0,
-          quiz_count: 0,
-          favorite: d.favorite || false,
-        })))
+        const enriched = await Promise.all(
+          docs.map(async (d: KhojiDocument) => {
+            let flashcard_count = 0
+            let quiz_count = 0
+            try {
+              const full = await getDocument(d.id)
+              flashcard_count = full?.flashcards?.length ?? 0
+              quiz_count = full?.quiz?.length ?? 0
+            } catch {
+              // counts stay 0 if detail fetch fails
+            }
+            return {
+              id: d.id,
+              filename: d.filename,
+              title: d.title || d.filename,
+              file_path: d.file_path,
+              file_size: d.file_size,
+              mime_type: d.mime_type || 'application/pdf',
+              page_count: d.page_count,
+              status: d.status,
+              created_at: d.created_at,
+              updated_at: d.updated_at,
+              notes: '',
+              flashcard_count,
+              quiz_count,
+              favorite: d.favorite || false,
+            }
+          }),
+        )
+        setDocuments(enriched)
       }
     } catch (e) {
       console.error('Failed to load documents:', e)
@@ -75,21 +89,26 @@ function App() {
       try {
         updateProcessingJob(jobId, { stage: 'ocr', status: 'processing', progress: 10 })
 
-        let filePath = ''
-        try {
-          const { open } = await import('@tauri-apps/plugin-dialog')
-          const selected = await open({
-            multiple: false,
-            filters: [{ name: 'Documents', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx', 'pptx', 'epub'] }]
-          })
-          if (selected) {
-            filePath = selected
-          } else {
+        // Tauri exposes the real filesystem path on the dropped/picked File object.
+        // Use it directly so importing never re-opens the native file picker.
+        const droppedPath = (file as unknown as { path?: string }).path
+        let filePath = droppedPath
+        if (!filePath) {
+          try {
+            const { open } = await import('@tauri-apps/plugin-dialog')
+            const selected = await open({
+              multiple: false,
+              filters: [{ name: 'Documents', extensions: ['pdf', 'png', 'jpg', 'jpeg', 'docx', 'pptx', 'epub'] }]
+            })
+            if (selected) {
+              filePath = selected
+            } else {
+              continue
+            }
+          } catch {
+            updateProcessingJob(jobId, { status: 'error', error: 'File dialog plugin not available' })
             continue
           }
-        } catch {
-          updateProcessingJob(jobId, { status: 'error', error: 'File dialog plugin not available' })
-          continue
         }
 
         updateProcessingJob(jobId, { stage: 'ocr', originalPath: filePath, status: 'processing', progress: 10 })
@@ -161,6 +180,28 @@ function App() {
       }
     }
   }, [documents, setActiveDocumentId, setCurrentView, setActiveDocument])
+
+  const showUploadRef = useRef(showUpload)
+  showUploadRef.current = showUpload
+
+  useEffect(() => {
+    const onDragOver = (e: DragEvent) => {
+      e.preventDefault()
+    }
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault()
+      // When the dedicated upload screen is open, UploadZone handles its own drops.
+      if (showUploadRef.current) return
+      const files = e.dataTransfer ? Array.from(e.dataTransfer.files) : []
+      if (files.length > 0) handleFilesSelected(files)
+    }
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('drop', onDrop)
+    return () => {
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('drop', onDrop)
+    }
+  }, [handleFilesSelected])
 
   return (
     <AppShell onUpload={() => setShowUpload(true)}>

@@ -17,7 +17,9 @@ def _sanitize_csv_cell(value: Any) -> str:
     return s
 
 
-def export_markdown(doc_id: str, db: Database) -> str:
+def export_markdown(doc_id: str, db: Database, include: dict | None = None) -> str:
+    if include and not include.get("notes", True):
+        return ""
     data = db.get_full_document_data(doc_id)
     if not data:
         return ""
@@ -27,7 +29,9 @@ def export_markdown(doc_id: str, db: Database) -> str:
     return f"# {data.get('title', data['filename'])}\n\nNo notes generated yet."
 
 
-def export_flashcards_anki(doc_id: str, db: Database) -> str:
+def export_flashcards_anki(doc_id: str, db: Database, include: dict | None = None) -> str:
+    if include and not include.get("flashcards", True):
+        return ""
     cards = db.get_flashcards(doc_id)
     if not cards:
         return ""
@@ -39,7 +43,9 @@ def export_flashcards_anki(doc_id: str, db: Database) -> str:
     return "\n".join(lines)
 
 
-def export_quiz_json(doc_id: str, db: Database) -> str:
+def export_quiz_json(doc_id: str, db: Database, include: dict | None = None) -> str:
+    if include and not include.get("quiz", True):
+        return "[]"
     questions = db.get_quiz_questions(doc_id)
     if not questions:
         return "[]"
@@ -82,7 +88,8 @@ def export_all_documents_csv(db: Database) -> str:
     return output.getvalue()
 
 
-def export_html(doc_id: str, db: Database) -> str:
+def export_html(doc_id: str, db: Database, include: dict | None = None) -> str:
+    include = include or {"notes": True, "flashcards": True, "quiz": True}
     data = db.get_full_document_data(doc_id)
     if not data:
         return ""
@@ -92,10 +99,10 @@ def export_html(doc_id: str, db: Database) -> str:
     parts = [f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{escaped_title}</title>"]
     parts.append("<style>body{font-family:Inter,sans-serif;max-width:800px;margin:0 auto;padding:2em;line-height:1.7;color:#1a1a2e;background:#fff}h1{color:#6366f1}h2{color:#4f46e5}</style></head><body>")
     parts.append(f"<h1>{escaped_title}</h1>")
-    if content:
+    if include.get("notes", True) and content:
         parts.append(f"<div>{html.escape(content).replace(chr(10), '<br>')}</div>")
     flashcards = db.get_flashcards(doc_id)
-    if flashcards:
+    if include.get("flashcards", True) and flashcards:
         parts.append("<h2>Flashcards</h2><ul>")
         for card in flashcards:
             front = html.escape(card['front'])
@@ -103,7 +110,7 @@ def export_html(doc_id: str, db: Database) -> str:
             parts.append(f"<li><strong>{front}</strong> — {back}</li>")
         parts.append("</ul>")
     quiz = db.get_quiz_questions(doc_id)
-    if quiz:
+    if include.get("quiz", True) and quiz:
         parts.append("<h2>Quiz</h2><ol>")
         for q in quiz:
             question = html.escape(q['question'])
@@ -113,8 +120,7 @@ def export_html(doc_id: str, db: Database) -> str:
     parts.append("</body></html>")
     return "\n".join(parts)
 
-
-def export_mermaid(doc_id: str, db: Database) -> str:
+def export_mermaid(doc_id: str, db: Database, include: dict | None = None) -> str:
     chunks = db.get_chunks(doc_id)
     if not chunks:
         return ""
@@ -130,9 +136,31 @@ def export_mermaid(doc_id: str, db: Database) -> str:
     return "\n".join(lines)
 
 
-def export_flashcards_json(doc_id: str, db: Database) -> str:
+def export_flashcards_json(doc_id: str, db: Database, include: dict | None = None) -> str:
+    if include and not include.get("flashcards", True):
+        return "[]"
     cards = db.get_flashcards(doc_id)
     return json.dumps(cards, indent=2, ensure_ascii=False)
+
+
+def export_doc_csv(doc_id: str, db: Database, include: dict | None = None) -> str:
+    # ponytail: per-document CSV so export respects the selected doc
+    doc = db.get_document(doc_id)
+    if not doc:
+        return ""
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["ID", "Filename", "Title", "Pages", "Size", "Status", "Created"])
+    writer.writerow([
+        doc["id"],
+        _sanitize_csv_cell(doc["filename"]),
+        _sanitize_csv_cell(doc.get("title", "")),
+        doc.get("page_count", ""),
+        doc.get("file_size", ""),
+        doc.get("status", ""),
+        doc.get("created_at", ""),
+    ])
+    return output.getvalue()
 
 
 FORMAT_HANDLERS = {
@@ -143,16 +171,16 @@ FORMAT_HANDLERS = {
     "quiz_json": ("quiz.json", export_quiz_json),
     "flashcards_json": ("flashcards.json", export_flashcards_json),
     "mermaid": ("diagram.mmd", export_mermaid),
-    "csv": ("library.csv", lambda doc_id, db: export_all_documents_csv(db)),
+    "csv": ("document.csv", export_doc_csv),
 }
 
 
-def export_document(doc_id: str, fmt: str, db: Database) -> tuple[str, str]:
+def export_document(doc_id: str, fmt: str, db: Database, include: dict | None = None) -> tuple[str, str]:
     handler = FORMAT_HANDLERS.get(fmt)
     if not handler:
         return "", ""
     default_name, func = handler
-    content = func(doc_id, db)
+    content = func(doc_id, db, include=include)
     return default_name, content
 
 

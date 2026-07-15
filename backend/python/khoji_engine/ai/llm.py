@@ -236,7 +236,13 @@ _default_llm: LocalLLM | None = None
 def get_llm() -> LocalLLM:
     global _default_llm
     if _default_llm is None:
-        _default_llm = LocalLLM()
+        probe = LocalLLM()
+        try:
+            # ponytail: auto-select model by available RAM on first init
+            _default_llm = LocalLLM(probe.detect_hardware())
+        except Exception as e:
+            logger.warning("Hardware detection failed, using default model: %s", e)
+            _default_llm = probe
     return _default_llm
 
 

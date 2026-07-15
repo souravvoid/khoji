@@ -7,10 +7,18 @@ from typing import Any
 
 
 _DATE_PATTERNS = [
-    re.compile(r"\b(19\d{2}|20[0-2]\d)\b"),
-    re.compile(r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(19\d{2}|20[0-2]\d)\b"),
-    re.compile(r"\b(the\s+)?(19\d{2}|20[0-2]\d)s\b"),
+    re.compile(r"(?i)\b(\d{1,4})\s*(?:BC|BCE)\b"),
+    re.compile(r"\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{3,4})\b"),
+    re.compile(r"\b(1\d{3}|20[0-2]\d)\b"),
+    re.compile(r"(?i)\b(?:the\s+)?(\d{2,3})s\b"),
+    re.compile(r"(?i)\b(\d{1,2})(?:st|nd|rd|th)\s+century\s*(BC|BCE|AD|CE)?\b"),
 ]
+
+_MONTH_MAP = {
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
 
 _HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
 _BULLET_RE = re.compile(r"^[\-\*]\s+(.+)$", re.MULTILINE)
@@ -128,18 +136,10 @@ def _split_sentences(text: str) -> list[str]:
 
 def _find_dates(sentence: str) -> list[str]:
     found = set()
-
-    for year_match in _DATE_PATTERNS[0].finditer(sentence):
-        found.add(year_match.group(0))
-
-    for month_match in _DATE_PATTERNS[1].finditer(sentence):
-        found.add(month_match.group(0))
-
-    for decade_match in _DATE_PATTERNS[2].finditer(sentence):
-        raw = decade_match.group(0)
-        normalized = raw.lower().replace("the ", "").strip()
-        found.add(normalized)
-
+    for pattern in _DATE_PATTERNS:
+        for m in pattern.finditer(sentence):
+            raw = m.group(0)
+            found.add(raw.lower().replace("the ", "").strip())
     return sorted(found)
 
 
@@ -153,20 +153,18 @@ def _make_title(sentence: str, max_words: int = 8) -> str:
 
 def _date_sort_key(event: dict[str, str]) -> tuple[int, int, int]:
     date_str = event["date"]
-    year_match = re.search(r"(19\d{2}|20[0-2]\d)", date_str)
-    year = int(year_match.group(0)) if year_match else 9999
-
-    month_map = {
-        "january": 1, "february": 2, "march": 3, "april": 4,
-        "may": 5, "june": 6, "july": 7, "august": 8,
-        "september": 9, "october": 10, "november": 11, "december": 12,
-    }
+    sl = date_str.lower()
+    era = -1 if ("bc" in sl or "bce" in sl) else 1
+    century = re.search(r"(\d{1,2})(?:st|nd|rd|th)\s+century", sl)
+    if century:
+        return ((int(century.group(1)) - 1) * 100 * era, 0, 0)
+    year_match = re.search(r"(\d{1,4})", date_str)
+    year = int(year_match.group(1)) * era if year_match else 9999
     month = 0
-    for name, num in month_map.items():
-        if name in date_str.lower():
+    for name, num in _MONTH_MAP.items():
+        if name in sl:
             month = num
             break
-
     return (year, month, 0)
 
 
