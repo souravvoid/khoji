@@ -150,6 +150,34 @@ fn find_python() -> String {
     "python3".to_string()
 }
 
+/// Locate a self-contained bundle: a directory tree that holds BOTH
+/// `khoji_engine/main.py` and `.venv/bin/python3`. We walk upward from
+/// the executable and probe a handful of plausible resource layouts
+/// (flat at the mount root, under `resources/`, under
+/// `usr/lib/khoji/resources/`, or preserving the `backend/python/` path).
+/// Returns `(bundled_python, engine_script)`.
+fn find_bundled_engine() -> Option<(std::path::PathBuf, std::path::PathBuf)> {
+    let exe = std::env::current_exe().ok()?;
+    let mut dir = exe.parent();
+    while let Some(d) = dir {
+        for base in [
+            d.to_path_buf(),
+            d.join("resources"),
+            d.join("usr/lib/khoji"),
+            d.join("usr/lib/khoji/resources"),
+            d.join("backend/python"),
+        ] {
+            let engine = base.join("khoji_engine/main.py");
+            let py = base.join(".venv/bin/python3");
+            if engine.exists() && py.exists() {
+                return Some((py, engine));
+            }
+        }
+        dir = d.parent();
+    }
+    None
+}
+
 fn find_engine_in_mount() -> Option<std::path::PathBuf> {
     let exe = std::env::current_exe().ok()?;
     let mut dir = exe.parent();
@@ -172,12 +200,20 @@ fn find_engine_in_mount() -> Option<std::path::PathBuf> {
 
 /// Start the Python engine and return it together with a channel of its stdout lines.
 fn start_engine() -> Result<(Child, mpsc::Receiver<String>), String> {
-    let python = find_python();
     let cwd = std::env::current_dir().unwrap_or_default();
 
     let appimage_path = std::env::current_exe()
         .ok()
         .and_then(|p| p.parent().map(|p| p.join("../lib/Khoji/backend/python/khoji_engine/main.py")));
+
+    // ponytail: self-contained build — the engine source + a Python venv are
+    // copied into the bundle. Prefer them so the AppImage runs fully offline
+    // with no system Python or repo checkout required.
+    let mut python = find_python();
+    let bundled_engine: Option<std::path::PathBuf> = find_bundled_engine().map(|(py, eng)| {
+        python = py.to_string_lossy().into_owned();
+        eng
+    });
 
     let candidates = vec![
         Some(cwd.join("../../backend/python/khoji_engine/main.py")),
@@ -196,10 +232,13 @@ fn start_engine() -> Result<(Child, mpsc::Receiver<String>), String> {
         find_engine_in_mount(),
     ];
 
-    let engine_script = candidates
-        .into_iter()
-        .flatten()
-        .find(|p| p.exists())
+    let engine_script = bundled_engine
+        .or_else(|| {
+            candidates
+                .into_iter()
+                .flatten()
+                .find(|p| p.exists())
+        })
         .ok_or_else(|| "Engine script not found".to_string())?;
 
     let engine_dir = engine_script
@@ -211,7 +250,7 @@ fn start_engine() -> Result<(Child, mpsc::Receiver<String>), String> {
     eprintln!("[khoji] Python: {} -m khoji_engine.main", python);
 
     let mut cmd = Command::new(&python);
-    cmd.args(["-v", "-m", "khoji_engine.main"])
+    cmd.args(["-m", "khoji_engine.main"])
         .current_dir(engine_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
