@@ -28,6 +28,16 @@ class ProcessingResult:
     quiz_count: int = 0
 
 
+def _read_text_file(path: Path) -> str:
+    # ponytail: text-like uploads must ingest; try sane encodings then lossy
+    for enc in ("utf-8", "latin-1", "cp1252"):
+        try:
+            return path.read_text(encoding=enc)
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+    return path.read_text(encoding="utf-8", errors="replace")
+
+
 def _extract_document(path: Path, progress_callback=None) -> tuple[ExtractionResult, str]:
     """Dispatch extraction by file type and fall back to OCR when no text is present."""
     suffix = path.suffix.lower()
@@ -48,6 +58,12 @@ def _extract_document(path: Path, progress_callback=None) -> tuple[ExtractionRes
         if ocr_result.text:
             extraction.pages.append(ExtractedPage(page_number=1, text=ocr_result.text))
             extraction.full_text = ocr_result.text
+    elif suffix in {".txt", ".md", ".markdown", ".html", ".htm", ".csv", ".rtf"}:
+        # ponytail: text-like files are read directly; markdown/html/csv stay as prose
+        text = _read_text_file(path)
+        extraction = ExtractionResult(filename=path.name, page_count=1)
+        extraction.pages.append(ExtractedPage(page_number=1, text=text))
+        extraction.full_text = text
     else:
         raise ValueError(f"Unsupported file type: {suffix}")
 
@@ -67,8 +83,8 @@ def _extract_document(path: Path, progress_callback=None) -> tuple[ExtractionRes
     return extraction, full_text
 
 
-def _run_embeddings(doc_id: str, chunks: list, progress_callback=None) -> None:
-    """Embed chunk texts and index them in the vector store."""
+def _run_embeddings(doc_id: str, chunks: list, progress_callback=None) -> bool:
+    """Embed chunk texts and index them in the vector store. Returns True on success."""
     if progress_callback:
         progress_callback("embedding", 70)
     try:
@@ -84,8 +100,12 @@ def _run_embeddings(doc_id: str, chunks: list, progress_callback=None) -> None:
             vector_store = get_vector_store()
             metadata = [{"doc_id": doc_id, "chunk_index": c["chunk_index"]} for c in chunks]
             vector_store.add_vectors(chunk_ids, embeddings, metadata)
+            return True
+        logger.warning("Embedder failed to load; skipping embeddings")
+        return False
     except Exception as e:
         logger.warning(f"Embedding generation failed: {e}")
+        return False
 
 
 def _generate_study_material(db, doc_id: str, full_text: str, progress_callback=None) -> tuple[int, int]:
@@ -133,10 +153,21 @@ def process_document_sync(
 
     existing = db.document_exists(str(path.resolve()))
     if existing:
-        result.doc_id = existing["id"]
-        result.message = "Document already processed"
-        result.success = True
-        return result
+        if existing.get("status") == "ready":
+            result.doc_id = existing["id"]
+            result.success = True
+            result.page_count = existing.get("page_count", 0)
+            result.chunk_count = len(db.get_chunks(result.doc_id))
+            result.flashcard_count = len(db.get_flashcards(result.doc_id))
+            result.quiz_count = len(db.get_quiz_questions(result.doc_id))
+            result.message = (
+                f"Document already processed ({result.chunk_count} chunks, "
+                f"{result.flashcard_count} flashcards, {result.quiz_count} quiz questions)"
+            )
+            return result
+        else:
+            logger.info("Incomplete document ingestion detected, deleting and restarting...")
+            db.delete_document(existing["id"])
 
     if progress_callback:
         progress_callback("ocr", 10)
@@ -183,7 +214,8 @@ def process_document_sync(
     result.chunk_count = len(chunks)
 
     if extract_embeddings:
-        _run_embeddings(result.doc_id, chunks, progress_callback)
+        if not _run_embeddings(result.doc_id, chunks, progress_callback):
+            result.message += " (warning: embeddings failed; search may be empty)"
 
     flashcard_count, quiz_count = _generate_study_material(
         db, result.doc_id, full_text, progress_callback
