@@ -12,6 +12,7 @@ import logging
 logger = logging.getLogger("khoji-engine")
 
 CHAT_CONTEXT_MAX_CHARS = 2000
+CHAT_HISTORY_MAX_MESSAGES = 10  # ponytail: cap to fit small-model context windows
 
 
 def handle_ping(payload):
@@ -334,21 +335,30 @@ def handle_chat_stream(payload, emit):
         return
 
     db = Database()
-    context = ""
+    system = ""
     if doc_id:
         notes = db.get_notes(doc_id)
         if notes:
             context = notes.get("content", "")[:CHAT_CONTEXT_MAX_CHARS]
-    prompt = (
-        f"Context from document:\n{context}\n\n"
-        f"User question: {message}\n\n"
-        "Provide a helpful answer based on the document context."
-    )
+            system = (
+                "You are a helpful study assistant. Answer the user's question using the "
+                "document context below, and use the prior conversation when the user refers "
+                "to earlier points.\n\n"
+                f"Document context:\n{context}"
+            )
+
+    # ponytail: last N turns only — keep within the model's context window
+    history = payload.get("history") or []
+    if not isinstance(history, list):
+        history = []
+    if len(history) > CHAT_HISTORY_MAX_MESSAGES:
+        history = history[-CHAT_HISTORY_MAX_MESSAGES:]
+
     llm = get_llm()
     if not llm.is_loaded():
         llm.load()
     if llm.is_loaded():
-        for token in llm.generate_stream(prompt):
+        for token in llm.generate_stream(message, system=system, history=history):
             emit({"type": "token", "content": token})
         emit({"type": "end", "result": {"response": ""}})
     else:

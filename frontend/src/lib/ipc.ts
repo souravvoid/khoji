@@ -67,6 +67,9 @@ export interface MindMapTree {
 export interface ChatMessage {
   role: string
   content: string
+  id?: string
+  created_at?: string
+  sources?: unknown
 }
 
 export interface ModelInfo {
@@ -153,8 +156,24 @@ export async function exportDocument(docId: string, format: string): Promise<Exp
   return parseResponse(await invoke('export_document', { docId, format }))
 }
 
-export async function getChatHistory(docId: string): Promise<ChatMessage[]> {
+export interface ChatHistorySession {
+  id: string
+  title: string
+  created_at: string
+  messages: ChatMessage[]
+}
+
+export async function getChatHistory(docId: string): Promise<ChatHistorySession[]> {
   return parseResponse(await invoke('get_chat_history', { docId }))
+}
+
+export async function saveChatSession(
+  sessionId: string,
+  docId: string | null,
+  title: string,
+  messages: ChatMessage[],
+): Promise<void> {
+  await invoke('save_chat_session', { sessionId, docId, title, messages })
 }
 
 export async function getModels(): Promise<ModelInfo[]> {
@@ -197,13 +216,18 @@ export async function askAiStream(
   message: string,
   onToken: (token: string) => void,
   onComplete: () => void,
+  history?: ChatMessage[],
 ): Promise<void> {
   const unlisten = await listen<string>('stream-token', (event) => {
     onToken(event.payload)
   })
 
   try {
-    await invoke('ask_ai_stream', { docId, message })
+    await invoke('ask_ai_stream', {
+      docId,
+      message,
+      history: history ?? [],
+    })
   } finally {
     unlisten()
     onComplete()

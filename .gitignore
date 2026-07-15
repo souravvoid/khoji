@@ -7,3 +7,8 @@ ui/
 project-review/
 .agents/
 .gstack/
+
+# Build artifacts / release binaries (too large to track)
+*.AppImage
+frontend/src-tauri/target/
+node_modules/

@@ -181,15 +181,19 @@ class LocalLLM:
             logger.error("Generation failed: %s", e)
             return f"[Error: {e}]"
 
-    def generate_stream(self, prompt: str, *, system: str = "") -> Iterator[str]:
-        """Generate a completion with streaming."""
+    def generate_stream(self, prompt: str, *, system: str = "", history: list[dict] | None = None) -> Iterator[str]:
+        """Generate a completion with streaming. ``history`` is a list of
+        ``{"role": "user"|"assistant", "content": ...}`` turns prepended
+        before the current prompt for multi-turn chat."""
         if not self.load():
             yield f"[Error: {self.state.error}]"
             return
 
-        messages = []
+        messages: list[dict] = []
         if system:
             messages.append({"role": "system", "content": system})
+        if history:
+            messages.extend(history)
         messages.append({"role": "user", "content": prompt})
 
         try:

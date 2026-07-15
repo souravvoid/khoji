@@ -17,6 +17,9 @@ export const QUIZ_PASS_PERCENTAGE = 80
 export const QUIZ_NEAR_PASS_PERCENTAGE = 50
 export const QUIZ_RESULT_LABEL_MAX = 50
 
+// Chat: max prior turns forwarded to the LLM for multi-turn context
+export const CHAT_HISTORY_MAX = 10
+
 // Mind map zoom bounds
 export const MINDMAP_MIN_ZOOM = 50
 export const MINDMAP_MAX_ZOOM = 200

@@ -192,11 +192,16 @@ fn ask_ai_stream(
     state: tauri::State<PythonEngine>,
     doc_id: String,
     message: String,
+    history: Option<serde_json::Value>,
 ) -> Result<String, String> {
     let mut engine = state.process.lock().map_err(|e| e.to_string())?;
+    let mut payload = serde_json::json!({ "doc_id": doc_id, "message": message });
+    if let Some(h) = history {
+        payload["history"] = h;
+    }
     let msg = serde_json::json!({
         "action": "chat_stream",
-        "payload": { "doc_id": doc_id, "message": message }
+        "payload": payload
     });
     writeln!(engine.stdin.as_mut().ok_or("No stdin")?, "{}", msg)
         .map_err(|e| format!("Write error: {}", e))?;
@@ -446,6 +451,25 @@ fn save_notes(
     send_message(&mut engine, &msg.to_string())
 }
 
+#[tauri::command]
+fn save_chat_session(
+    state: tauri::State<PythonEngine>,
+    session_id: String,
+    doc_id: Option<String>,
+    title: String,
+    messages: serde_json::Value,
+) -> Result<String, String> {
+    let mut engine = state.process.lock().map_err(|e| e.to_string())?;
+    let payload = serde_json::json!({
+        "session_id": session_id,
+        "doc_id": doc_id,
+        "title": title,
+        "messages": messages
+    });
+    let msg = serde_json::json!({ "action": "save_chat_session", "payload": payload });
+    send_message(&mut engine, &msg.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let engine = start_python_engine().expect("Failed to start Python AI engine");
@@ -475,6 +499,7 @@ pub fn run() {
             generate_timeline,
             generate_mindmap,
             save_notes,
+            save_chat_session,
             select_model,
         ])
         .run(tauri::generate_context!())
